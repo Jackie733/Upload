@@ -20,7 +20,13 @@ const loadConfig = () => {
 
 const SERVER_NAME = process.argv[2];
 const LOCAL_FILE = process.argv[3];
-const REMOTE_DIR = process.argv[4] || '~/uploads/';
+const REMOTE_DIR =
+  process.argv[4] ||
+  path.posix.join(
+    '/home',
+    serverConfig.username || process.env.SSH_USER,
+    'uploads/'
+  );
 
 if (!SERVER_NAME || !LOCAL_FILE) {
   console.error('Usage: ssh-upload <server> <local-file> [remote-dir]');
