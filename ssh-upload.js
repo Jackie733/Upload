@@ -6,19 +6,29 @@ const path = require('path');
 const readline = require('readline');
 const { Client } = require('ssh2');
 
-const SERVER_CONFIG = {
-  host: process.env.SSH_HOST,
-  port: process.env.SSH_PORT || 22,
-  username: process.env.SSH_USER,
-  password: process.env.SSH_PASSWORD,
-  // privateKey: fs.readFileSync(process.env.SSH_KEY_PATH),
+const loadConfig = () => {
+  const configPath = path.join(process.env.HOME, 'code/toolkit/config.json');
+  try {
+    if (fs.existsSync(configPath)) {
+      return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    }
+  } catch (err) {
+    console.error(`Load config error: ${err.message}`);
+  }
+  return { servers: {} };
 };
 
-const LOCAL_FILE = process.argv[2];
-const REMOTE_DIR = process.argv[3] || '/uploads/';
+const SERVER_NAME = process.argv[2];
+const LOCAL_FILE = process.argv[3];
+const REMOTE_DIR = process.argv[4] || '~/uploads/';
 
-if (!LOCAL_FILE) {
-  console.error('Error: please provide file path');
+if (!SERVER_NAME || !LOCAL_FILE) {
+  console.error('Usage: ssh-upload <server> <local-file> [remote-dir]');
+  console.error('Available servers:');
+  const config = loadConfig();
+  Object.keys(config.servers).forEach((name) => {
+    console.log(`- ${name}`);
+  });
   process.exit(1);
 }
 
@@ -26,6 +36,22 @@ if (!fs.existsSync(LOCAL_FILE)) {
   console.error(`Error: file "${LOCAL_FILE}" not found`);
   process.exit(1);
 }
+
+const config = loadConfig();
+const serverConfig = config.servers[SERVER_NAME];
+
+if (!serverConfig) {
+  console.error(`Error: server "${SERVER_NAME}" not found`);
+  process.exit(1);
+}
+
+const SERVER_CONFIG = {
+  host: serverConfig.host || process.env.SSH_HOST,
+  port: serverConfig.port || process.env.SSH_PORT || 22,
+  username: serverConfig.username || process.env.SSH_USER,
+  password: serverConfig.password || process.env.SSH_PASSWORD,
+  // privateKey: fs.readFileSync(process.env.SSH_KEY_PATH),
+};
 
 const REMOTE_PATH = path.join(REMOTE_DIR, path.basename(LOCAL_FILE));
 const FILE_SIZE = fs.statSync(LOCAL_FILE).size;
