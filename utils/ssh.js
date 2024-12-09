@@ -1,7 +1,5 @@
-// utils/ssh.js
 const { Client } = require('ssh2');
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs/promises');
 
 class SSHClient {
   constructor(config) {
@@ -39,7 +37,6 @@ class SSHClient {
     const sftp = await this.getSftp();
     return new Promise((resolve, reject) => {
       sftp.stat(remotePath, (err, stats) => {
-        console.log(`Checking remote file: ${remotePath}`);
         if (err && err.code === 2) {
           resolve(null);
         } else if (err) {
@@ -51,15 +48,26 @@ class SSHClient {
     });
   }
 
+  /**
+   *
+   * @param {import('ssh2').SFTPWrapper} sftp
+   * @param {string} localPath
+   * @param {string} remotePath
+   * @param {*} param3
+   * @returns
+   */
   async _upload(sftp, localPath, remotePath, { onProgress, onOverwrite }) {
     try {
+      const fileHandle = await fs.open(localPath, 'r');
+      const fileSize = (await fileHandle.stat()).size;
+
       const stats = await this.checkRemoteFile(remotePath);
       let startPosition = 0;
       let uploadedBytes = 0;
 
-      if (stats) {
-        const next = await onOverwrite?.(remotePath);
-        if (next === 3) {
+      if (stats && typeof onOverwrite === 'function') {
+        const next = await onOverwrite(remotePath);
+        if (next === '3') {
           throw new Error('Upload cancelled');
         }
         startPosition = next === '1' ? 0 : stats?.size || 0;
@@ -67,22 +75,30 @@ class SSHClient {
 
       console.log('Uploading file...');
 
-      // Create streams
-      const readStream = fs.createReadStream(localPath, {
-        start: startPosition,
-      });
-      const writeStream = sftp.createWriteStream(remotePath, {
-        flags: startPosition === 0 ? 'w' : 'a',
-      });
-
-      const fileSize = fs.statSync(localPath).size;
-      uploadedBytes = startPosition;
-
       return new Promise((resolve, reject) => {
+        uploadedBytes = startPosition;
+
+        const readStream = fileHandle.createReadStream({
+          start: startPosition,
+        });
+        const writeStream = sftp.createWriteStream(remotePath, {
+          flags: startPosition === 0 ? 'w' : 'a',
+        });
+
+        readStream.pipe(writeStream);
+
         const cleanup = () => {
           readStream.destroy();
           writeStream.end();
         };
+
+        readStream.on('data', (chunk) => {
+          uploadedBytes += chunk.length;
+          if (typeof onProgress === 'function') {
+            const progress = Math.floor((uploadedBytes / fileSize) * 100);
+            onProgress(progress);
+          }
+        });
 
         readStream.on('error', (err) => {
           cleanup();
@@ -94,19 +110,9 @@ class SSHClient {
           reject(new Error(`Write error: ${err.message}`));
         });
 
-        readStream.on('data', (chunk) => {
-          uploadedBytes += chunk.length;
-          const progress = Math.floor((uploadedBytes / fileSize) * 100);
-          onProgress?.(progress);
-        });
-
-        writeStream.on('close', () => {
+        writeStream.on('close', async () => {
           cleanup();
           resolve();
-        });
-
-        writeStream.on('ready', () => {
-          readStream.pipe(writeStream);
         });
       });
     } catch (err) {

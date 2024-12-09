@@ -53,9 +53,9 @@ const createZipArchive = async (sourcePath, compressDirOnly = false) => {
   try {
     console.log(`Compressing directory "${sourcePath}"...`);
     const { stderr } = await exec(
-      `cd "${path.dirname(
+      `cd "${path.dirname(sourcePath)}" && zip -r "${zipPath}" "${path.basename(
         sourcePath
-      )}" && zip -r -q "${zipPath}" "${path.basename(sourcePath)}"`
+      )}"`
     );
 
     if (stderr) {
