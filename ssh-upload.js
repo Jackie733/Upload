@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
@@ -83,7 +82,7 @@ function showUsage() {
   console.error(
     'Usage: ssh-upload <server> <local-file | local-directory> [remote-dir]'
   );
-  console.error('Available servers:');
+  console.log('Available servers:');
   const config = Config.loadConfig();
   Object.keys(config.servers).forEach((name) => console.log(`- ${name}`));
 }
