@@ -38,8 +38,20 @@ const createZipArchive = async (sourcePath, compressDirOnly = false) => {
   }
 
   const tmpDir = os.tmpdir();
-  const timestamp = new Date().getTime();
-  const zipName = `${path.basename(sourcePath)}-${timestamp}.zip`;
+  const timestamp = new Date()
+    .toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    })
+    .replace(/[\/:]/g, '-') // Replace slashes and colons with hyphens
+    .replace(/,|\s/g, '_') // Replace commas and spaces with underscore
+    .replace(/\./g, '');
+  const zipName = `${path.basename(sourcePath)}_${timestamp}.zip`;
   const zipPath = path.join(tmpDir, zipName);
 
   if (fs.existsSync(zipPath)) {
