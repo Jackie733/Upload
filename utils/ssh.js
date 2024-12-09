@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import { Client } from 'ssh2';
+import SpeedTracker from './speed.js';
 
 class SSHClient {
   constructor(config) {
@@ -74,6 +75,7 @@ class SSHClient {
       }
 
       console.log('Uploading file...');
+      const speedTracker = new SpeedTracker();
 
       return new Promise((resolve, reject) => {
         uploadedBytes = startPosition;
@@ -95,8 +97,9 @@ class SSHClient {
         readStream.on('data', (chunk) => {
           uploadedBytes += chunk.length;
           if (typeof onProgress === 'function') {
+            const speed = speedTracker.calculateSpeed(uploadedBytes);
             const progress = Math.floor((uploadedBytes / fileSize) * 100);
-            onProgress(progress);
+            onProgress(progress, progress !== 100 ? speed : undefined);
           }
         });
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import path from 'node:path';
-import readline from 'readline';
+import { select } from '@inquirer/prompts';
 import { createZipArchive } from './utils/compress.js';
 import SSHClient from './utils/ssh.js';
 import Config from './config/index.js';
@@ -46,14 +46,15 @@ async function main() {
     );
 
     await sshClient.uploadFile(uploadFile, remotePath, {
-      onProgress: (progress) => {
+      onProgress: (progress, speed) => {
         const percentage = Math.floor(progress);
         const width = 30;
         const completed = Math.floor(width * (percentage / 100));
         const remaining = width - completed;
         const bar = '█'.repeat(completed) + '░'.repeat(remaining);
+        const speedDisplay = speed ? ` - ${speed}` : '';
 
-        process.stdout.write(`\x1b[K[${bar}] ${percentage}%\r`);
+        process.stdout.write(`\x1b[K[${bar}] ${percentage}%${speedDisplay}\r`);
 
         if (percentage === 100) {
           process.stdout.write('\nUpload completed\n');
@@ -87,24 +88,13 @@ function showUsage() {
 }
 
 function confirmOverwrite(filePath) {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  return new Promise((resolve) => {
-    rl.question(
-      `File "${filePath}" already exists.\n` +
-        'Choose an option:\n' +
-        '1) Overwrite\n' +
-        '2) Resume (if supported)\n' +
-        '3) Cancel\n' +
-        'Your choice (1-3): ',
-      (answer) => {
-        rl.close();
-        resolve(answer.trim());
-      }
-    );
+  return select({
+    message: `File "${filePath}" already exists`,
+    choices: [
+      { name: 'Overwrite', value: '1' },
+      { name: 'Resume (if supported)', value: '2' },
+      { name: 'Cancel', value: '3' },
+    ],
   });
 }
 
