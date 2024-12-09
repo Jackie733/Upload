@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 
-const fs = require('fs');
-const path = require('path');
-const readline = require('readline');
-const createZipArchive = require('./utils/compress');
-const SSHClient = require('./utils/ssh');
-const Config = require('./config');
+import path from 'node:path';
+import readline from 'readline';
+import { createZipArchive } from './utils/compress.js';
+import SSHClient from './utils/ssh.js';
+import Config from './config/index.js';
 
 async function main() {
   const [serverName, localFile, remoteDir] = process.argv.slice(2);

@@ -1,8 +1,10 @@
-const fs = require('fs');
-const path = require('path');
-const util = require('util');
-const os = require('os');
-const exec = util.promisify(require('child_process').exec);
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
+import util from 'node:util';
+import { exec } from 'node:child_process';
+
+const execAsync = util.promisify(exec);
 
 const COMPRESSED_EXTENSIONS = [
   '.zip',
@@ -45,14 +47,14 @@ const createZipArchive = async (sourcePath, compressDirOnly = false) => {
   }
 
   try {
-    await exec('which zip');
+    await execAsync('which zip');
   } catch (err) {
     throw new Error('zip command not found');
   }
 
   try {
     console.log(`Compressing directory "${sourcePath}"...`);
-    const { stderr } = await exec(
+    const { stderr } = await execAsync(
       `cd "${path.dirname(sourcePath)}" && zip -r "${zipPath}" "${path.basename(
         sourcePath
       )}"`
@@ -106,4 +108,4 @@ const createZipArchive = async (sourcePath, compressDirOnly = false) => {
   }
 };
 
-module.exports = createZipArchive;
+export { createZipArchive };

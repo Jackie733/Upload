@@ -1,5 +1,5 @@
-const { Client } = require('ssh2');
-const fs = require('node:fs/promises');
+import fs from 'node:fs/promises';
+import { Client } from 'ssh2';
 
 class SSHClient {
   constructor(config) {
@@ -125,4 +125,4 @@ class SSHClient {
   }
 }
 
-module.exports = SSHClient;
+export default SSHClient;
