@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import util from 'node:util';
-import { exec } from 'node:child_process';
+import { exec, spawn } from 'node:child_process';
 
 const execAsync = util.promisify(exec);
 
@@ -64,60 +64,62 @@ const createZipArchive = async (sourcePath, compressDirOnly = false) => {
     throw new Error('zip command not found');
   }
 
-  try {
+  return new Promise((resolve, reject) => {
     console.log(`Compressing directory "${sourcePath}"...`);
-    const { stderr } = await execAsync(
-      `cd "${path.dirname(sourcePath)}" && zip -r "${zipPath}" "${path.basename(
-        sourcePath
-      )}"`
-    );
 
-    if (stderr) {
-      throw new Error(`Zip error: ${stderr}`);
-    }
-
-    if (!fs.existsSync(zipPath)) {
-      throw new Error(`Compression failed`);
-    }
-
-    process.on('exit', () => {
-      if (fs.existsSync(zipPath)) {
-        try {
-          fs.unlinkSync(zipPath);
-        } catch (err) {
-          console.error(`Delete tmp file error: ${err.message}`);
-        }
-      }
+    const zip = spawn('zip', ['-r', zipPath, path.basename(sourcePath)], {
+      cwd: path.dirname(sourcePath),
     });
 
-    // handle error
-    ['SIGINT', 'SIGTERM', 'SIGQUIT'].forEach((signal) => {
-      process.on(signal, () => {
+    zip.stdout.on('data', (data) => {
+      process.stdout.write(data);
+    });
+
+    zip.stderr.on('data', (data) => {
+      process.stdout.write(`\rProgress: ${data}`);
+    });
+
+    zip.on('error', (err) => {
+      if (fs.existsSync(zipPath)) {
+        fs.unlinkSync(zipPath);
+      }
+      reject(new Error(`Compression failed: ${err.message}`));
+    });
+
+    zip.on('close', (code) => {
+      if (code !== 0) {
         if (fs.existsSync(zipPath)) {
-          try {
-            fs.unlinkSync(zipPath);
-          } catch (err) {
-            console.error(`Delete tmp file error: ${err.message}`);
-          }
+          fs.unlinkSync(zipPath);
         }
-        process.exit();
+        reject(new Error(`Compression failed with code ${code}`));
+        return;
+      }
+
+      if (!fs.existsSync(zipPath)) {
+        reject(new Error('Compression failed: output file not found'));
+        return;
+      }
+
+      const cleanup = () => {
+        if (fs.existsSync(zipPath)) {
+          fs.unlinkSync(zipPath);
+        }
+      };
+
+      process.on('exit', cleanup);
+      ['SIGINT', 'SIGTERM', 'SIGQUIT'].forEach((signal) => {
+        process.on(signal, () => {
+          cleanup();
+          process.exit();
+        });
+      });
+
+      resolve({
+        path: zipPath,
+        cleanup,
       });
     });
-
-    return {
-      path: zipPath,
-      cleanup: () => {
-        if (fs.existsSync(zipPath)) {
-          fs.unlinkSync(zipPath);
-        }
-      },
-    };
-  } catch (err) {
-    if (fs.existsSync(zipPath)) {
-      await fs.promises.unlink(zipPath);
-    }
-    throw new Error(`Compress error: ${err.message}`);
-  }
+  });
 };
 
 export { createZipArchive };

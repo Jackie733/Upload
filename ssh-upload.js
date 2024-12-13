@@ -57,7 +57,8 @@ async function main() {
         process.stdout.write(`\x1b[K[${bar}] ${percentage}%${speedDisplay}\r`);
 
         if (percentage === 100) {
-          process.stdout.write('\nUpload completed\n');
+          process.stdout.write('\nUpload completed\r');
+          process.stdout.write('\nFile remote path: ' + remotePath + '\n');
         }
       },
       onOverwrite: async (path) => {
