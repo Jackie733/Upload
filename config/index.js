@@ -1,12 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 class Config {
   static loadConfig() {
-    const configPath = path.join(
-      process.env.HOME,
-      'code/toolkit/config/config.json'
-    );
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    const configPath = path.join(__dirname, 'config.json');
     try {
       if (fs.existsSync(configPath)) {
         return JSON.parse(fs.readFileSync(configPath, 'utf-8'));

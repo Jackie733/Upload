@@ -19,7 +19,7 @@ const COMPRESSED_EXTENSIONS = [
 ];
 
 // Compress using zip
-const createZipArchive = async (sourcePath, compressDirOnly = false) => {
+const createZipArchive = async (sourcePath, compressDirOnly = true) => {
   if (!sourcePath || !fs.existsSync(sourcePath)) {
     throw new Error('Invalid source path');
   }
